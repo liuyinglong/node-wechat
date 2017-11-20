@@ -25,6 +25,7 @@ let WeChat = function (config) {
 WeChat.prototype = {
     /**
      * 带auth的请求
+     * 带secret向微信服务器发起请求。
      * @param url
      * @param body
      * @returns {*|Request}
@@ -32,7 +33,7 @@ WeChat.prototype = {
     fetchAuthGet: function (url, body) {
         return this.request.get(url, Object.assign(body, this.info))
     },
-
+    
     /**
      * 普通请求
      * @param url
@@ -42,7 +43,7 @@ WeChat.prototype = {
     fetchGet: function (url, body) {
         return this.request.get(url, body)
     },
-
+    
     /**
      * 普通post请求
      * @param url
@@ -52,7 +53,7 @@ WeChat.prototype = {
     fetchPost: function (url, body) {
         return this.request.post(url, body)
     },
-
+    
     /**
      * 带accessToken的请求
      * @param url
@@ -75,10 +76,9 @@ WeChat.prototype = {
                     access_token: this.accessToken.access_token
                 }))
             }
-
         }
     },
-
+    
     /**
      * 验证签名
      * @param req
@@ -89,7 +89,7 @@ WeChat.prototype = {
         let tempSignature = this.generateSign(query.timestamp, query.nonce).signature;
         return tempSignature === query.signature;
     },
-
+    
     /**
      * 生成签名
      * @param timestamp
@@ -100,14 +100,14 @@ WeChat.prototype = {
         timestamp = timestamp ? timestamp : parseInt(Date.now() / 1000);
         nonce = nonce ? nonce : Math.random();
         let tempAry = [timestamp, nonce, this.token].sort();
-
+        
         return {
             signature: tools.sha1(tempAry.join("")),
             timestamp: timestamp,
             nonce: nonce
         };
     },
-
+    
     /**
      * 接收消息
      * @param req
@@ -120,7 +120,7 @@ WeChat.prototype = {
         req.on("data", function (chunk) {
             temp = temp + chunk;
         });
-
+        
         req.on("end", function () {
             parseString(temp, {explicitArray: false}, function (err, result) {
                 if (err) return;
@@ -145,7 +145,7 @@ WeChat.prototype = {
             });
         });
     },
-
+    
     /**
      * 监听事件的次数
      * 如果没有监听 则自动回复空内容
@@ -157,8 +157,8 @@ WeChat.prototype = {
             res.reply();
         }
     },
-
-
+    
+    
     /**
      * 回复消息
      * 此方法不可直接调用
@@ -184,7 +184,7 @@ WeChat.prototype = {
         this.writeHead(200, {'Content-Type': 'application/xml'});
         this.end(resMsg);
     },
-
+    
     /**
      * 生成授权链接
      * @param redirectUrl
@@ -196,9 +196,12 @@ WeChat.prototype = {
         let stateString = state ? "&state=" + state : "";
         return "https://open.weixin.qq.com/connect/oauth2/authorize?appid=" + this.appid + "&redirect_uri=" + encodeURIComponent(redirectUrl) + "&response_type=code&scope=" + scope + stateString + "#wechat_redirect"
     },
-
+    
     /**
      * 获取access_token
+     * 首先请注意，这里通过code换取的是一个特殊的网页授权access_token,与基础支持中的access_token（该access_token用于调用其他接口）不同。
+     * 公众号可通过下述接口来获取网页授权access_token。如果网页授权的作用域为snsapi_base，则本步骤中获取到网页授权access_token的同时，也获取到了openid，snsapi_base式的网页授权流程即到此为止。
+     * 尤其注意：由于公众号的secret和获取到的access_token安全级别都非常高，必须只保存在服务器，不允许传给客户端。后续刷新access_token、通过access_token获取用户信息等步骤，也必须从服务器发起
      * @param code
      * @returns {*}
      */
@@ -208,7 +211,7 @@ WeChat.prototype = {
             grant_type: "authorization_code"
         })
     },
-
+    
     /**
      * 获取access_token
      * @param code
@@ -220,7 +223,7 @@ WeChat.prototype = {
             openid: authInfo.openid
         })
     },
-
+    
     /**
      * 获取用户信息
      * @param code
@@ -231,7 +234,7 @@ WeChat.prototype = {
             return this.getUserInfoByToken(res.body);
         }.bind(this))
     },
-
+    
     /**
      * 获取 UnionID
      * @param code
@@ -246,7 +249,7 @@ WeChat.prototype = {
             })
         }.bind(this))
     },
-
+    
     /**
      * 获取accessToken
      * @returns {*}
@@ -262,7 +265,7 @@ WeChat.prototype = {
             console.log(err);
         });
     },
-
+    
     /**
      * 获取jsTicket
      * @returns {Promise.<T>}
@@ -280,7 +283,7 @@ WeChat.prototype = {
             return Promise.resolve();
         }
     },
-
+    
     /**
      * jssdk构建字符串
      * @param args
@@ -293,7 +296,7 @@ WeChat.prototype = {
         keys.forEach(function (key) {
             newArgs[key.toLowerCase()] = args[key];
         });
-
+        
         let string = '';
         for (let k in newArgs) {
             string += '&' + k + '=' + newArgs[k];
@@ -301,7 +304,7 @@ WeChat.prototype = {
         string = string.substr(1);
         return string;
     },
-
+    
     /**
      * 随机字符串生成器
      * @returns {string}
@@ -309,7 +312,7 @@ WeChat.prototype = {
     createNonceStr: function () {
         return Math.random().toString(36).substr(2, 15);
     },
-
+    
     /**
      * 时间戳 秒
      * @returns {string}
@@ -317,7 +320,7 @@ WeChat.prototype = {
     createTimestamp: function () {
         return parseInt(new Date().getTime() / 1000) + '';
     },
-
+    
     /**
      * 生成jsSDK签名
      * @param url
@@ -340,8 +343,8 @@ WeChat.prototype = {
             })
         })
     },
-
-
+    
+    
     /**
      * 新增客服
      * @param service
@@ -349,7 +352,7 @@ WeChat.prototype = {
     addService: function (service) {
         return this.fetchToken("/customservice/kfaccount/add", service, "POST")
     },
-
+    
     /**
      * 修改客服
      * @param service
@@ -358,7 +361,7 @@ WeChat.prototype = {
     updateService: function (service) {
         return this.fetchToken("/customservice/kfaccount/update", service, "POST")
     },
-
+    
     /**
      * 删除客服
      * @param service
@@ -367,14 +370,14 @@ WeChat.prototype = {
     deleteService: function (service) {
         return this.fetchToken("/customservice/kfaccount/del", service, "POST")
     },
-
+    
     /**
      * 上传客服头像
      */
     uploadHeadImg: function () {
         //customservice/kfaccount/uploadheadimg
     },
-
+    
     /**
      * 获取客服列表
      * @returns {*}
@@ -382,7 +385,7 @@ WeChat.prototype = {
     getServiceList: function () {
         return this.fetchToken("/cgi-bin/customservice/getkflist");
     },
-
+    
     /**
      * 发送客服消息
      * @param msgInfo
@@ -391,9 +394,9 @@ WeChat.prototype = {
     serviceSend: function (msgInfo) {
         return this.fetchToken("/cgi-bin/message/custom/send", msgInfo, "POST");
     },
-
-
-    upload:function(fileInfo){
+    
+    
+    upload: function (fileInfo) {
         ///cgi-bin/media/upload?access_token=ACCESS_TOKEN&type=TYPE
     }
 };
