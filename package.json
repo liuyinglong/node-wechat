@@ -9,8 +9,11 @@
   "author": "liuyinglong",
   "license": "ISC",
   "dependencies": {
-    "node-fetch": "^1.6.3",
     "crypto": "^0.0.3",
-    "xml2js": "^0.4.17"
+    "form-data": "^2.3.1",
+    "node-fetch": "^1.6.3",
+    "request": "^2.83.0",
+    "xml2js": "^0.4.17",
+    "xmlbuilder": "^9.0.4"
   }
 }
