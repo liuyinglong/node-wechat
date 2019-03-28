@@ -37,7 +37,8 @@ module.exports = class WxRequest {
     /**
      * 获取access_token
      */
-    getAccessToken() {
+    getAccessToken(cb) {
+        this.tokenState = 1;
         this.http("/cgi-bin/token", {
             params: Object.assign(this.info, {
                 "grant_type": "client_credential"
@@ -45,9 +46,11 @@ module.exports = class WxRequest {
             success: (res) => {
                 console.log(new Date() + "获取access_token:" + res.access_token);
                 this.accessToken = res.access_token;
+                this.tokenState = 0;
                 for (let i = 0, len = this.tokenReqList.length; i < len; i++) {
                     this.tokenReqList.shift()();
                 }
+                cb && cb();
             },
             error: (err) => {
                 console.log(new Date() + "获取access_token:" + err);
@@ -82,6 +85,17 @@ module.exports = class WxRequest {
         return strAry.join("&");
     }
     
+    
+    requestPipe(url, options) {
+        
+    }
+    
+    
+    /**
+     * 请求数据等
+     * @param url
+     * @param options
+     */
     http(url, options) {
         let unReqOptions = ["method", "success", "error", "complete", "needAccessToken", "params"];
         let req = function () {
@@ -98,7 +112,7 @@ module.exports = class WxRequest {
                 if (!options.params) {
                     options.params = {};
                 }
-                options.params.access_token = this.accessToken+"G";
+                options.params.access_token = this.accessToken + "G";
             }
             //处理params
             if (options.params) {

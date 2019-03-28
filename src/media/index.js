@@ -51,7 +51,7 @@ class MediaBin {
      * @param filePath 文件的路径,精确到扩展名
      * @param media_id
      */
-    getTemporary(filePath, media_id) {
+    getTemporary(filePath, media_id){
         return new Promise((resolve, reject) => {
             this.wxRequest.http("/cgi-bin/media/get", {
                 needToken: true,
