@@ -18,15 +18,16 @@ router.get('/', function (req, res, next) {
 /**
  * 接受微信消息 事件等
  */
-router.post('/', function (req, res, next) {
-    weChat.message.userMessage(req, res, (msg, res) => {
-        res.reply({
+router.post('/', weChat.message.userMessage({
+    text: function (msg) {
+        console.log(msg)
+        return {
             ToUserName: msg.FromUserName,
             FromUserName: msg.ToUserName,
             Content: "ee"   //回复内容
-        })
-    });
-});
+        }
+    }
+}));
 
 
 /**
@@ -51,6 +52,16 @@ router.get("/userInfo", function (req, res, next) {
             res.send("error");
         });
     }
+});
+
+/**
+ * 获取前面
+ */
+router.get("/js_sdk_sign", function (req, res, next) {
+    weChat.web.jssdkSignature(req.query.url)
+        .then((data) => {
+            res.send(data)
+        })
 });
 
 

@@ -47,8 +47,7 @@ module.exports = class WxWeb {
                     reject(err);
                 }
             })
-        });
-        
+        })
     }
     
     /**
@@ -177,27 +176,28 @@ module.exports = class WxWeb {
         return string;
     }
     
-    createNonceStr() {
+    static createNonceStr() {
         return Math.random().toString(36).substr(2, 15);
     }
     
     
-    createTimestamp() {
-        return parseInt(new Date().getTime() / 1000) + '';
+    static createTimestamp() {
+        return Math.floor(Date.now() / 1000) + '';
     }
-    
+
+
     /**
      * 生成jsSDK签名
      * @param url
-     * @returns {Promise.<TResult>}
+     * @returns {Promise<{signature: (*|string), noncestr, timestamp} | never>}
      */
     jssdkSignature(url) {
         let self = this;
         return this.getJSApiTicket().then(function () {
             let temp = {
-                noncestr: self.createNonceStr(),
+                noncestr: WxWeb.createNonceStr(),
                 jsapi_ticket: self.jsapiTicket.ticket,
-                timestamp: self.createTimestamp(),
+                timestamp: WxWeb.createTimestamp(),
                 url: decodeURIComponent(url)
             };
             let tempStr = self.raw(temp);

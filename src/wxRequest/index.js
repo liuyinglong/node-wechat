@@ -23,8 +23,8 @@ module.exports = class WxRequest {
             secret: this.secret
         }
     }
-    
-    
+
+
     constructUrl(url) {
         let urlReg = /http(s)?:\/\/([\w-]+\.)+[\w-]+(\/[\w- .\/?%&=]*)?/;
         if (urlReg.test(url)) {
@@ -32,8 +32,8 @@ module.exports = class WxRequest {
         }
         return this.serverUrl + url;
     }
-    
-    
+
+
     /**
      * 获取access_token
      */
@@ -58,7 +58,7 @@ module.exports = class WxRequest {
             }
         });
     }
-    
+
     /**
      * 生成签名
      * @param timestamp
@@ -75,8 +75,8 @@ module.exports = class WxRequest {
             nonce: nonce
         };
     }
-    
-    
+
+
     objToUrl(obj) {
         let strAry = [];
         for (let k in obj) {
@@ -84,13 +84,8 @@ module.exports = class WxRequest {
         }
         return strAry.join("&");
     }
-    
-    
-    requestPipe(url, options) {
-        
-    }
-    
-    
+
+
     /**
      * 请求数据等
      * @param url
@@ -98,7 +93,7 @@ module.exports = class WxRequest {
      */
     http(url, options) {
         let unReqOptions = ["method", "success", "error", "complete", "needAccessToken", "params"];
-        let req = function () {
+        let req = () => {
             let reqOptions = {};
             //需要accessToken
             if (options.needAccessToken) {
@@ -146,7 +141,7 @@ module.exports = class WxRequest {
                 try {
                     res.body = JSON.parse(res.body);
                 } catch (err) {
-                
+
                 }
                 options.complete && options.complete(err, res);
                 if (err) {
@@ -183,7 +178,7 @@ module.exports = class WxRequest {
                 }
                 options.success && options.success(res.body);
             });
-        }.bind(this);
+        };
         req();
     }
 };

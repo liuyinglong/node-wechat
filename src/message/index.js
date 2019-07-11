@@ -12,7 +12,7 @@ class WxMessage {
         this.wxRequest = wxRequest;
         this.event = emitter;
     }
-    
+
     /**
      * 微信接口配置信息
      * @param req
@@ -27,74 +27,67 @@ class WxMessage {
             return false;
         }
     }
-    
-    
-    /**
-     * 接收消息
-     * @param req
-     * @param res
-     * @param cb 如果传入回调函数，则执行回调函数
-     */
-    userMessage(req, res, cb) {
-        let temp = "";
-        let self = this;
-        res.reply = self.reply.bind(res);
-        req.on("data", function (chunk) {
-            temp = temp + chunk;
-        });
-        req.on("end", function () {
-            parser.parseString(temp, {
-                explicitArray: false
-            }, function (err, result) {
-                if (err) return;
-                let msg = result.xml;
-                if (cb) {
-                    cb && cb(msg, res);
-                    return;
-                }
-                //发布接受消息事件
-                self.event.emit(`wx-${msg.MsgType}`, msg, res);
-                self.msgEventListen(`wx-${msg.MsgType}`, msg, res);
-            });
-        });
-    }
-    
-    /**
-     * 监听事件的次数
-     * 如果没有监听 则自动回复空内容
-     * @param evenType
-     * @param res
-     */
-    msgEventListen(evenType, res) {
-        if (!EventEmitter.listenerCount(this.event, evenType)) {
-            res.reply();
+
+
+    userMessage(options) {
+        return function (req, res, next) {
+            let response = function (responseMsg) {
+                //向微信服务器返回消息
+                res.writeHead(200, {'Content-Type': 'application/xml'});
+                res.end(responseMsg);
+            }
+
+
+            let xmlInfo = "";
+            req.on("data", function (chunk) {
+                xmlInfo = xmlInfo + chunk;
+            })
+            req.on("end", () => {
+                parser.parseString(xmlInfo, {explicitArray: false}, (err, result) => {
+
+                    let requestMsg = result.xml;
+                    let responseMsg = null
+
+                    //处理普通消息
+                    if (requestMsg.MsgType === "event") {
+                        if (options["event"]) {
+                            let eventCb = options["event"][requestMsg.Event]
+                            if (eventCb) {
+                                responseMsg = eventCb(responseMsg)
+                            }
+                        }
+                    }
+
+                    //处理事件消息
+                    if (requestMsg.MsgType !== "event") {
+                        if (options["message"]) {
+                            let messageCb = options["message"][requestMsg.MsgType]
+                            if (messageCb) {
+                                responseMsg = messageCb(requestMsg)
+                            }
+                        }
+                    }
+
+                    if (!responseMsg && options["default"]) {
+                        responseMsg = options["default"](requestMsg)
+                    }
+
+                    if (!responseMsg) {
+                        response()
+                        return
+                    }
+
+                    responseMsg.CreateTime = Math.floor(Number(Date.now() / 1000));
+                    responseMsg.MsgType = responseMsg.MsgType || "text";
+                    let xmlInfo = '';
+                    Object.keys(responseMsg).forEach((key) => {
+                        xmlInfo = xmlInfo + `<${key}><![CDATA[${responseMsg[key]}]]></${key}>`
+                    })
+                    xmlInfo = `<xml>${xmlInfo}</xml>`;
+                    response(xmlInfo)
+                });
+            })
         }
-    }
-    
-    
-    /**
-     * 回复消息
-     * 此方法不可直接调用
-     * 绑定在res对象上 this指向res
-     * @param msg
-     * @param type 消息类型
-     */
-    reply(msg, type = "text") {
-        // 消息不存在 返回空消息
-        if (!msg) {
-            this.end();
-            return;
-        }
-        msg.CreateTime = parseInt(new Date().valueOf() / 1000);
-        msg.MsgType = msg.MsgType ? msg.MsgType : type;
-        let xmlInfo = '';
-        for (let key in msg) {
-            xmlInfo = xmlInfo + `<${key}><![CDATA[${msg[key]}]]></${key}>`
-        }
-        xmlInfo = `<xml>${xmlInfo}</xml>`;
-        //向微信服务器返回消息
-        this.writeHead(200, {'Content-Type': 'application/xml'});
-        this.end(xmlInfo);
     }
 }
 
