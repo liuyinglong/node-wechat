@@ -5,7 +5,8 @@
 
 
 let tools = require("../tools/tools");
-let request = require("request");
+let axios = require("axios");
+let qs = require("qs")
 
 
 module.exports = class WxRequest {
@@ -47,13 +48,14 @@ module.exports = class WxRequest {
                 console.log(new Date() + "获取access_token:" + res.access_token);
                 this.accessToken = res.access_token;
                 this.tokenState = 0;
-                for (let i = 0, len = this.tokenReqList.length; i < len; i++) {
+                while (this.tokenReqList.length) {
                     this.tokenReqList.shift()();
                 }
                 cb && cb();
             },
             error: (err) => {
-                console.log(new Date() + "获取access_token:" + err);
+                console.error(new Date() + "获取access_token:");
+                console.error(err)
                 throw Error(err);
             }
         });
@@ -66,7 +68,7 @@ module.exports = class WxRequest {
      * @returns {{signature: *}}
      */
     generateSign(timestamp, nonce) {
-        timestamp = timestamp ? timestamp : parseInt(Date.now() / 1000);
+        timestamp = timestamp ? timestamp : Math.floor(Date.now() / 1000);
         nonce = nonce ? nonce : Math.random();
         let tempAry = [timestamp, nonce, this.token].sort();
         return {
@@ -77,12 +79,59 @@ module.exports = class WxRequest {
     }
 
 
-    objToUrl(obj) {
+    /**
+     *
+     * @param obj
+     * @returns {string}
+     */
+    static objToUrl(obj) {
         let strAry = [];
         for (let k in obj) {
             strAry.push(k + "=" + obj[k]);
         }
         return strAry.join("&");
+    }
+
+
+    formatOptions(options) {
+        //分离私有options和axios的options
+        let privateKeySet = new Set([
+            "success", "error", "complete", "needAccessToken", "emulateJSON"
+        ])
+
+        let privateOptions = {}
+        let requestOptions = {}
+        for (let key in options) {
+            if (!options.hasOwnProperty(key)) {
+                continue
+            }
+            if (privateKeySet.has(key)) {
+                privateOptions[key] = options[key]
+            } else {
+                requestOptions[key] = options[key]
+            }
+        }
+
+        if (typeof privateOptions.emulateJSON === "undefined") {
+            privateOptions.emulateJSON = true
+        }
+
+        //请求地址
+        requestOptions.url = this.constructUrl(requestOptions.url)
+
+        //axios request token
+        let CancelToken = axios.CancelToken
+        let source = CancelToken.source()
+        requestOptions.cancelToken = source.token
+
+        //query参数
+        requestOptions.params = Object.assign({}, requestOptions.params)
+
+        return {
+            privateOptions,
+            requestOptions,
+            source
+        }
     }
 
 
@@ -92,11 +141,28 @@ module.exports = class WxRequest {
      * @param options
      */
     http(url, options) {
-        let unReqOptions = ["method", "success", "error", "complete", "needAccessToken", "params"];
+        if (typeof url === "object") {
+            options = url
+        } else {
+            options.url = url
+        }
+
+        //格式化options
+        let {requestOptions, privateOptions, source} = this.formatOptions(options)
+
+        //请求体
+        requestOptions.data = Object.assign({}, privateOptions.body, requestOptions.data)
+
+        //使用'content-type': 'application/x-www-form-urlencoded'进行请求
+        if (privateOptions.emulateJSON) {
+            let headers = {'content-type': 'application/x-www-form-urlencoded'}
+            requestOptions.headers = Object.assign(headers, requestOptions.headers)
+            requestOptions.data = qs.stringify(requestOptions.data)
+        }
+
         let req = () => {
-            let reqOptions = {};
             //需要accessToken
-            if (options.needAccessToken) {
+            if (privateOptions.needAccessToken) {
                 if (!this.accessToken) {
                     this.tokenReqList.push(req);
                     if (this.tokenState === 0) {
@@ -104,60 +170,22 @@ module.exports = class WxRequest {
                     }
                     return;
                 }
-                if (!options.params) {
-                    options.params = {};
-                }
-                options.params.access_token = this.accessToken + "G";
+                requestOptions.params = Object.assign({}, requestOptions.params)
+                requestOptions.params.access_token = this.accessToken;
             }
-            //处理params
-            if (options.params) {
-                let queryString = this.objToUrl(options.params);
-                let tempUrl = "";
-                if (url.indexOf("?") > -1) {
-                    tempUrl = url + queryString;
-                } else {
-                    tempUrl = this.serverUrl + url + "?" + queryString;
-                }
-                reqOptions.url = this.constructUrl(tempUrl);
-            }
-            let method = options.method || "get";
-            for (let k in options) {
-                let same = false;
-                if (k === "formData") {
-                    reqOptions.formData = options.formData();
-                    continue;
-                }
-                for (let i = 0; i < unReqOptions.length; i++) {
-                    if (k === unReqOptions[i]) {
-                        same = true;
-                        break;
-                    }
-                }
-                if (!same) {
-                    reqOptions[k] = options[k];
-                }
-            }
-            request[method.toLocaleLowerCase()](reqOptions, (err, res) => {
-                try {
-                    res.body = JSON.parse(res.body);
-                } catch (err) {
 
-                }
-                options.complete && options.complete(err, res);
-                if (err) {
-                    options.error && options.error({
-                        error: err,
-                        code: 500,
-                        message: "无法连接到服务器"
-                    });
-                    return;
-                }
-                if (res.body && res.body["errcode"]) {
-                    switch (res.body["errcode"]) {
+
+            console.log(requestOptions)
+            axios(requestOptions).then((res) => {
+                let {data} = res
+                console.log(data)
+                privateOptions.complete && privateOptions.complete(res);
+                if (data && data["errcode"]) {
+                    switch (data["errcode"]) {
                         case 40001:
                         case 41001:
-                            if (options.needAccessToken) {
-                                if (this.accessToken === options.params.access_token) {
+                            if (privateOptions.needAccessToken) {
+                                if (this.accessToken === requestOptions.params.access_token) {
                                     //获取access_token时AppSecret错误，或者access_token无效 此时从新获取token
                                     this.tokenReqList.push(req);
                                     if (this.tokenState === 0) {
@@ -167,18 +195,25 @@ module.exports = class WxRequest {
                                     req();
                                 }
                             } else {
-                                options.error && options.error(res.body);
+                                privateOptions.error && privateOptions.error(data);
                             }
                             break;
                         default:
-                            options.error && options.error(res.body);
+                            privateOptions.success && privateOptions.success(data);
                             break;
                     }
-                    return;
+                    return
                 }
-                options.success && options.success(res.body);
+                privateOptions.success && privateOptions.success(data);
+            }, (err) => {
+                privateOptions.error && privateOptions.error({
+                    error: err,
+                    code: 500,
+                    message: "无法连接到服务器"
+                });
             });
         };
         req();
     }
-};
+}
+

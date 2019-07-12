@@ -1,17 +1,19 @@
 {
   "name": "wechat-plus",
-  "version": "1.0.0",
+  "version": "1.0.10",
   "description": "",
-  "main": "index.js",
+  "main": "./src/index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "liuyinglong",
   "license": "ISC",
   "dependencies": {
+    "axios": "^0.19.0",
     "crypto": "^0.0.3",
     "form-data": "^2.3.1",
     "node-fetch": "^1.6.3",
+    "qs": "^6.7.0",
     "request": "^2.83.0",
     "xml2js": "^0.4.17",
     "xmlbuilder": "^9.0.4"

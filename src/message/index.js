@@ -15,16 +15,16 @@ class WxMessage {
 
     /**
      * 微信接口配置信息
-     * @param req
-     * @param res
-     * @returns {*}
+     * @returns {Function}
      */
-    checkSignature(req, res) {
-        let signature = this.wxRequest.generateSign(req.query.timestamp, req.query.nonce).signature;
-        if (req.query.signature === signature) {
-            return res.send(req.query.echostr);
-        } else {
-            return false;
+    checkSignature() {
+        return function (req, res, next) {
+            let signature = this.wxRequest.generateSign(req.query.timestamp, req.query.nonce).signature;
+            if (req.query.signature === signature) {
+                return res.send(req.query.echostr);
+            }
+            console.error("signature verify fail")
+            res.send()
         }
     }
 
@@ -43,33 +43,32 @@ class WxMessage {
                 xmlInfo = xmlInfo + chunk;
             })
             req.on("end", () => {
-                parser.parseString(xmlInfo, {explicitArray: false}, (err, result) => {
-
+                parser.parseString(xmlInfo, {explicitArray: false}, async (err, result) => {
                     let requestMsg = result.xml;
                     let responseMsg = null
 
-                    //处理普通消息
+                    //处理事件消息
                     if (requestMsg.MsgType === "event") {
                         if (options["event"]) {
                             let eventCb = options["event"][requestMsg.Event]
                             if (eventCb) {
-                                responseMsg = eventCb(responseMsg)
+                                responseMsg = await Promise.resolve(eventCb(requestMsg))
                             }
                         }
                     }
 
-                    //处理事件消息
+                    //处理普通消息
                     if (requestMsg.MsgType !== "event") {
                         if (options["message"]) {
                             let messageCb = options["message"][requestMsg.MsgType]
                             if (messageCb) {
-                                responseMsg = messageCb(requestMsg)
+                                responseMsg = await Promise.resolve(messageCb(requestMsg))
                             }
                         }
                     }
 
                     if (!responseMsg && options["default"]) {
-                        responseMsg = options["default"](requestMsg)
+                        responseMsg = await Promise.resolve(options["default"](requestMsg))
                     }
 
                     if (!responseMsg) {
