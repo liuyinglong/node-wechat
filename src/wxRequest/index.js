@@ -175,10 +175,10 @@ module.exports = class WxRequest {
             }
 
 
-            console.log(requestOptions)
+
             axios(requestOptions).then((res) => {
                 let {data} = res
-                console.log(data)
+
                 privateOptions.complete && privateOptions.complete(res);
                 if (data && data["errcode"]) {
                     switch (data["errcode"]) {

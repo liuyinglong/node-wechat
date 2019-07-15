@@ -199,7 +199,7 @@ module.exports = class WxWeb {
                     timestamp: WxWeb.createTimestamp(),
                     url: url
                 };
-                console.log(temp)
+
 
                 let tempStr = this.raw(temp);
                 return {
