@@ -131,7 +131,7 @@ module.exports = class WxWeb {
      * @returns {Promise.<T>}
      */
     getJSApiTicket() {
-        if (!this.jsapiTicket.ticket || Math.floor(Date.now() / 1000) - this.jsapiTicket.timestamp < 200) {
+        if (!this.jsapiTicket.ticket || this.jsapiTicket.timestamp - Date.now() < 60000) {
             return new Promise((resolve, reject) => {
                 this.wxRequest.http("/cgi-bin/ticket/getticket", {
                     needAccessToken: true,
