@@ -3,18 +3,22 @@
  */
 
 
-let Web = require("./web/index");
-let Message = require("./message/index");
-let WxRequest = require("./wxRequest/index");
-let MediaBin = require("./media/index");
+let Web = require("./web/index")
+let MP = require("./mp/index")
+
+let Message = require("./message/index")
+let WxRequest = require("./wxRequest/index")
+let MediaBin = require("./media/index")
+
 
 class WeChat {
     constructor(config) {
-        this.wxRequest = new WxRequest(config);
-        this.message = new Message(this.wxRequest);
-        this.web = new Web(this.wxRequest,config);
-        this.mediaBin = new MediaBin(this.wxRequest);
+        this.wxRequest = new WxRequest(config)
+        this.message = new Message(this.wxRequest)
+        this.web = new Web(this.wxRequest, config)
+        this.mp = new MP(this.wxRequest, config)
+        this.mediaBin = new MediaBin(this.wxRequest)
     }
 }
 
-module.exports = WeChat;
+module.exports = WeChat

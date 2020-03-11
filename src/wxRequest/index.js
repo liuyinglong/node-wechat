@@ -8,14 +8,15 @@ let tools = require("../tools/tools");
 let axios = require("axios");
 let qs = require("qs")
 
-
 module.exports = class WxRequest {
     constructor(config) {
         this.token = config.token;
         this.appid = config.appid;
         this.secret = config.secret;
-        this.accessToken = null;      //7200更新
-        this.jsapiTicket = null;      //7200更新
+        this.accessToken = {    //7200秒更新
+            accessToken: "",
+            timestamp: 0
+        };
         this.tokenReqList = [];   //需要token的请求
         this.tokenState = 0;          //token状态 0为正常 1为正在获取token 2为获取token失败
         this.serverUrl = "https://api.weixin.qq.com";
@@ -46,7 +47,8 @@ module.exports = class WxRequest {
             }),
             success: (res) => {
                 console.log(new Date() + "获取access_token:" + res.access_token);
-                this.accessToken = res.access_token;
+                this.accessToken.accessToken = res.access_token;
+                this.accessToken.timestamp = Date.now()
                 this.tokenState = 0;
                 while (this.tokenReqList.length) {
                     this.tokenReqList.shift()();
@@ -163,18 +165,19 @@ module.exports = class WxRequest {
         let req = () => {
             //需要accessToken
             if (privateOptions.needAccessToken) {
-                if (!this.accessToken) {
+                //判断accessToken是否存在和过期，留出100秒的缓冲时间
+                if (!this.accessToken.accessToken || Date.now() - this.accessToken.timestamp > 7100000) {
                     this.tokenReqList.push(req);
                     if (this.tokenState === 0) {
                         this.getAccessToken();
                     }
                     return;
                 }
-                requestOptions.params = Object.assign({}, requestOptions.params)
-                requestOptions.params.access_token = this.accessToken;
+                requestOptions.params = Object.assign({}, requestOptions.params, requestOptions.query)
+                requestOptions.params.access_token = this.accessToken.accessToken;
             }
 
-
+            console.log(requestOptions)
 
             axios(requestOptions).then((res) => {
                 let {data} = res
@@ -184,6 +187,7 @@ module.exports = class WxRequest {
                     switch (data["errcode"]) {
                         case 40001:
                         case 41001:
+                        case 42001:
                             if (privateOptions.needAccessToken) {
                                 if (this.accessToken === requestOptions.params.access_token) {
                                     //获取access_token时AppSecret错误，或者access_token无效 此时从新获取token

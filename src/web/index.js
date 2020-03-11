@@ -8,7 +8,10 @@ module.exports = class WxWeb {
         this.wxRequest = wxRequest;
         this.appid = config.appid;
         this.secret = config.secret;
-        this.jsapiTicket = {};
+        this.jsapiTicket = {
+            ticket: "",
+            timestamp: 0
+        };
     }
 
     /**
@@ -31,6 +34,8 @@ module.exports = class WxWeb {
      * @param code
      * @returns {*}
      */
+
+
     getWebAuthAccessToken(code) {
         return new Promise((resolve, reject) => {
             this.wxRequest.http("/sns/oauth2/access_token", {
@@ -131,7 +136,8 @@ module.exports = class WxWeb {
      * @returns {Promise.<T>}
      */
     getJSApiTicket() {
-        if (!this.jsapiTicket.ticket || this.jsapiTicket.timestamp - Date.now() < 60000) {
+        //判断是否过期，留出100秒的缓冲时间
+        if (!this.jsapiTicket.ticket || Date.now()-this.jsapiTicket.timestamp > 7100000) {
             return new Promise((resolve, reject) => {
                 this.wxRequest.http("/cgi-bin/ticket/getticket", {
                     needAccessToken: true,

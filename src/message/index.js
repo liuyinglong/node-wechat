@@ -18,7 +18,7 @@ class WxMessage {
      * @returns {Function}
      */
     checkSignature() {
-        return function (req, res, next) {
+        return  (req, res, next)=> {
             let signature = this.wxRequest.generateSign(req.query.timestamp, req.query.nonce).signature;
             if (req.query.signature === signature) {
                 return res.send(req.query.echostr);
