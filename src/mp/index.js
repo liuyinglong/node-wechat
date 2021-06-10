@@ -33,4 +33,23 @@ module.exports = class WxWeb {
             })
         }))
     }
+
+    createMpCode(option){
+        return new Promise((resolve, reject) => {
+            this.wxRequest.http({
+                url:"/wxa/getwxacodeunlimit",
+                method:"POST",
+                data:option,
+                responseType: 'arraybuffer',
+                emulateJSON:false,
+                needAccessToken:true,
+                success:(data)=>{
+                    resolve(data)
+                },
+                fail:(error)=>{
+                    reject(error)
+                }
+            })
+        })
+    }
 }

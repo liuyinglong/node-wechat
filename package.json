@@ -16,7 +16,7 @@
     "escapedName": "wechat-plus",
     "rawSpec": "^1.0.16",
     "saveSpec": null,
-    "fetchSpec": "^1.0.16"
+    "fetchSpec": "^1.0.20"
   },
   "_requiredBy": [
     "/"
