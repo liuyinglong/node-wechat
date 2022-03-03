@@ -17,3 +17,11 @@ weChat.mp.createMpCode({
     .catch(function (err) {
         console.error(err)
     })
+
+weChat.mp.msgSecCheck("中国很好")
+    .then(function (res) {
+        console.log(res)
+    })
+    .catch(function (err) {
+        console.error(err)
+    })

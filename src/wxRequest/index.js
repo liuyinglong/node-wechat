@@ -102,7 +102,7 @@ module.exports = class WxRequest {
     formatOptions(options) {
         //分离私有options和axios的options
         let privateKeySet = new Set([
-            "success", "error", "complete", "needAccessToken", "emulateJSON"
+            "success", "error", "fail","complete", "needAccessToken", "emulateJSON"
         ])
 
         let privateOptions = {}
@@ -117,6 +117,7 @@ module.exports = class WxRequest {
                 requestOptions[key] = options[key]
             }
         }
+        privateOptions.error = privateOptions.error || privateOptions.fail
 
         if (typeof privateOptions.emulateJSON === "undefined") {
             privateOptions.emulateJSON = true
