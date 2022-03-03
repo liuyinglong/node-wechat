@@ -18,7 +18,7 @@ module.exports = class WxRequest {
             timestamp: 0
         }
         this.tokenReqList = []   //需要token的请求
-        this.tokenState = 0          //token状态 0为正常 1为正在获取token 2为获取token失败
+        this.tokenState = 0          //token状态 0为正常 1为正在获取token
         this.serverUrl = "https://api.weixin.qq.com"
         this.info = {
             appid: this.appid,
@@ -39,7 +39,7 @@ module.exports = class WxRequest {
     /**
      * 获取access_token
      */
-    getAccessToken(cb) {
+    getAccessToken({success, fail} = {}) {
         this.tokenState = 1
         this.http("/cgi-bin/token", {
             params: Object.assign(this.info, {
@@ -49,16 +49,20 @@ module.exports = class WxRequest {
                 console.log(new Date() + "获取access_token:" + res.access_token)
                 this.accessToken.accessToken = res.access_token
                 this.accessToken.timestamp = Date.now()
-                this.tokenState = 0
                 while (this.tokenReqList.length) {
                     this.tokenReqList.shift()()
                 }
-                cb && cb()
+                success && success()
             },
             error: (err) => {
-                console.error(new Date() + "获取access_token:")
-                console.error(err)
-                throw Error(err)
+                console.log("获取accessToken失败",err)
+                while (this.tokenReqList.length) {
+                    this.tokenReqList.shift()(err)
+                }
+                fail && fail(err)
+            },
+            complete: () => {
+                this.tokenState = 0
             }
         })
     }
@@ -162,13 +166,20 @@ module.exports = class WxRequest {
             requestOptions.data = qs.stringify(requestOptions.data)
         }
 
-        let req = () => {
+        let req = (err) => {
+            if(err){
+                privateOptions.complete && privateOptions.complete(res)
+                privateOptions.error && privateOptions.error(err)
+                return
+            }
+
             //需要accessToken
             if (privateOptions.needAccessToken) {
                 //判断accessToken是否存在和过期，留出100秒的缓冲时间
                 if (!this.accessToken.accessToken || Date.now() - this.accessToken.timestamp > 7100000) {
                     this.tokenReqList.push(req)
                     if (this.tokenState === 0) {
+                        console.log(new Date(),"快失效获取token")
                         this.getAccessToken()
                     }
                     return
@@ -178,36 +189,49 @@ module.exports = class WxRequest {
             }
 
 
-
             axios(requestOptions).then((res) => {
                 let {data} = res
+                console.log(data)
 
-                privateOptions.complete && privateOptions.complete(res)
+                //如果请求的是arrayBuffer但是返回值又不是arrayBuffer,则将arrayBuffer转为json
+                if (requestOptions.responseType === "arraybuffer") {
+                    if (!res.headers["content-disposition"]) {
+                        data = JSON.parse(String.fromCharCode.apply(null, new Uint16Array(data))) //转化成json对象
+                    }
+                }
+
+                //如果出现错误
                 if (data && data["errcode"]) {
                     switch (data["errcode"]) {
                         case 40001:
                         case 41001:
                         case 42001:
                             if (privateOptions.needAccessToken) {
-                                if (this.accessToken === requestOptions.params.access_token) {
-                                    //获取access_token时AppSecret错误，或者access_token无效 此时从新获取token
-                                    this.tokenReqList.push(req)
-                                    if (this.tokenState === 0) {
+                                if (this.tokenState === 0) {
+                                    if (this.accessToken === requestOptions.params.access_token) {
+                                        //获取access_token时AppSecret错误，或者access_token无效 此时从新获取token
+                                        this.tokenReqList.push(req)
+                                        console.log(new Date(),"已失效获取token")
                                         this.getAccessToken()
+                                    } else {
+                                        req()
                                     }
-                                } else {
-                                    req()
                                 }
                             } else {
+                                privateOptions.complete && privateOptions.complete(res)
                                 privateOptions.error && privateOptions.error(data)
                             }
                             break
                         default:
+                            privateOptions.complete && privateOptions.complete(res)
                             privateOptions.error && privateOptions.error(data)
                             break
                     }
                     return
                 }
+
+
+                privateOptions.complete && privateOptions.complete(res)
                 privateOptions.success && privateOptions.success(data)
             }, (err) => {
                 privateOptions.error && privateOptions.error({
